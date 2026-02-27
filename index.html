@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HoloMem • Hololive Live & Schedule</title>
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="styles.css"/>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+</head>
+<body class="min-h-screen">
+  <!-- Video background -->
+  <video autoplay muted loop playsinline id="bg-video" class="fixed inset-0 w-full h-full object-cover z-[-20]">
+    <source src="bg-stars.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+
+  <!-- Background Music Playlist -->
+<audio id="bgm" loop></audio>
+
+<!-- Floating music controls (appears if autoplay is blocked) -->
+<div id="music-player" class="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+  <button id="play-pause-bgm" class="bg-purple-600/90 hover:bg-purple-700 text-white px-5 py-3 rounded-full shadow-xl backdrop-blur-sm flex items-center gap-2 transition-all">
+
+  </button>
+  <div id="now-playing" class="text-white text-sm bg-black/60 px-4 py-2 rounded-lg backdrop-blur-sm max-w-xs text-right">
+    Loading playlist...
+  </div>
+</div>
+  <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+    <div>
+      <h1 class="text-4xl font-bold text-purple-400 tracking-tight">HoloMem</h1>
+      <p class="text-gray-400 mt-1">Hololive live + upcoming via Holodex API</p>
+    </div>
+    <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+      <!-- API key input is now optional / hidden by default -->
+      <input id="apikey" type="text" placeholder="Holodex API key (optional override)"
+             class="bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:border-purple-500 flex-1 hidden"/>
+      <button id="refresh-btn" 
+              class="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg font-medium flex items-center justify-center gap-2 whitespace-nowrap">
+        <i class="fas fa-sync-alt"></i> Refresh Now
+      </button>
+    </div>
+  </header>
+
+  <div class="flex flex-wrap gap-4 mb-6 text-sm">
+    <div class="bg-gray-800 px-4 py-2 rounded-lg">
+      LIVE: <span id="live-count" class="font-bold text-red-400">—</span>
+    </div>
+    <div class="bg-gray-800 px-4 py-2 rounded-lg">
+      Upcoming: <span id="upcoming-count" class="font-bold text-purple-400">—</span>
+    </div>
+    <div id="status" class="text-gray-400 self-center"></div>
+  </div>
+
+  <div class="flex border-b border-gray-700 mb-6 overflow-x-auto">
+    <button class="tab-btn px-5 py-3 font-medium border-b-2 border-transparent hover:border-purple-500 focus:border-purple-500 data-[active=true]:border-purple-500 data-[active=true]:text-purple-300" data-tab="live">LIVE NOW</button>
+    <button class="tab-btn px-5 py-3 font-medium border-b-2 border-transparent hover:border-purple-500 focus:border-purple-500 data-[active=true]:border-purple-500 data-[active=true]:text-purple-300" data-tab="upcoming">UPCOMING</button>
+    <button class="tab-btn px-5 py-3 font-medium border-b-2 border-transparent hover:border-purple-500 focus:border-purple-500 data-[active=true]:border-purple-500 data-[active=true]:text-purple-300" data-tab="birthdays">BIRTHDAYS</button>
+    <button class="tab-btn px-5 py-3 font-medium border-b-2 border-transparent hover:border-purple-500 focus:border-purple-500 data-[active=true]:border-purple-500 data-[active=true]:text-purple-300" data-tab="anniversaries">ANNIVERSARIES</button>
+  </div>
+
+  <div id="panel-live" class="tab-panel grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"></div>
+  <div id="panel-upcoming" class="tab-panel hidden space-y-4"></div>
+
+
+  <!-- Birthdays panel -->
+  <div id="panel-birthdays" class="tab-panel hidden">
+    <h2 class="text-2xl font-bold text-pink-400 mb-6">Birthdays</h2>
+    <div id="birthdays-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+  </div>
+
+<!-- Anniversaries panel -->
+<div id="panel-anniversaries" class="tab-panel hidden py-20 flex flex-col items-center justify-center min-h-[70vh]">
+  <h2 class="text-4xl md:text-5xl font-bold text-purple-400 mb-16 text-center">
+    Debut Anniversaries
+  </h2>
+
+  <!-- Central group image (optional) -->
+  <div class="mb-12">
+    <img 
+      id="anniv-central-image"
+      src="https://example.com/your-holomem-group-photo.jpg" 
+      alt="Hololive Members" 
+      class="w-64 h-64 md:w-96 md:h-96 object-cover rounded-full shadow-2xl ring-8 ring-purple-500/40 mx-auto"
+    >
+  </div>
+
+  <!-- Scroll controls + current member -->
+  <div class="relative w-full max-w-4xl px-4">
+    <!-- Left arrow -->
+    <button id="prev-member" class="absolute left-0 top-1/2 -translate-y-1/2 bg-purple-600/80 hover:bg-purple-700 text-white p-6 rounded-full shadow-xl z-10 transition transform hover:scale-110">
+      <i class="fas fa-chevron-left text-4xl"></i>
+    </button>
+
+    <!-- Current member card -->
+    <div id="current-member-card" class="text-center px-24 transition-all duration-500 ease-in-out opacity-100 min-h-[500px] flex flex-col justify-center">
+      <p class="text-gray-400 text-2xl">Loading members...</p>
+    </div>
+
+    <!-- Right arrow -->
+    <button id="next-member" class="absolute right-0 top-1/2 -translate-y-1/2 bg-purple-600/80 hover:bg-purple-700 text-white p-6 rounded-full shadow-xl z-10 transition transform hover:scale-110">
+      <i class="fas fa-chevron-right text-4xl"></i>
+    </button>
+  </div>
+
+  <!-- Progress -->
+  <div id="anniv-progress" class="mt-10 text-gray-400 text-lg">
+    Member 1 of X
+  </div>
+</div>
+
+</div> <!-- this closes the max-w-7xl container -->
+
+<footer class="text-center text-gray-500 text-sm py-10 border-t border-gray-800">
+  Fan-made • Data from <a href="https://holodex.net" target="_blank" class="hover:text-purple-400">Holodex</a>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
